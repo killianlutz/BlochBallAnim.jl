@@ -302,6 +302,7 @@ function setup_menu!(; fig=current_figure(), location=[1, 2], sublocation=[1, 2]
     return (; initial_data=initial_data_menu, gate=gate_menu)
 end
 
+
 function setup_selectpoint!(; fig=current_figure(), location=[1, 2], sublocation=[4, 1])
     axis_control = Axis(
         fig[location...][sublocation...],

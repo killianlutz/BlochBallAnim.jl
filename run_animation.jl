@@ -29,6 +29,4 @@ h = [
 # ]
 
 ############ Run animation
-with_theme(theme_dark()) do 
-    BlochAnimation.bloch_animation(; figure_theme, H0, h)
-end
+BlochAnimation.bloch_animation(; figure_theme, H0, h)
