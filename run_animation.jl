@@ -13,7 +13,7 @@ figure_theme = theme_dark();
 ############ CHOOSE specific GKSL ode parameters
 ### 2D control ω and control hamiltonians: Pauli X/2 and Y/2
 ### free Hamiltonian (must be hermitian)
-H0 = [-1 2; 2 1] 
+H0 = [-1.0 2.0; 2.0 1.0] 
 ### jump operators (any number of 2x2 matrices, damping rates γ_k = 1)
 # J_minus and J_plus with asymmetric damping rates
 h = [

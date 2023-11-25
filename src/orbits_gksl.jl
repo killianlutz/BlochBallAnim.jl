@@ -3,9 +3,24 @@ function normalized_pauli(C::DataType)
         [zero(C) 1; 1 0], 
         [zero(C) -im; im 0],
         [one(C) 0; 0 -1]
-    ] ./ sqrt(2)
+    ] ./ C(sqrt(2))
 
     return npauli
+end
+
+function blochvector_to_vectorized_density(X::Real, Y::Real, Z::Real, vectorized_npauli::AbstractVector)
+    ϱ0 = zero(first(vectorized_npauli))
+    components = [X, Y, Z]
+    length = norm(components)
+
+    if length > 1 # project bloch ball radius 1
+        components ./= length
+    end
+    for i in 1:3
+        ϱ0 .+= components[i] .* vectorized_npauli[i]
+    end
+
+    return ϱ0
 end
 
 function vecgate(U::AbstractArray{<:Number})

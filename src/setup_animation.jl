@@ -1,4 +1,4 @@
-""" Runs the Bloch ball animation in an external window using GLMakie. \n
+""" Runs the Bloch ball (in fact: COHERENCE ball) animation in an external window using GLMakie. \n
 Available kwargs: \n 
 ``H0<:AbstractMatrix{<:Number}'': free Hamiltonian \n
 ``h<:Vector{<:AbstractMatrix{<:Number}}'': jump_operators."""
@@ -25,7 +25,7 @@ end
 function setup_figure(; figure_theme, location=[1, 1])
     with_theme(figure_theme) do
         radius = 1/sqrt(2)
-        fig = Figure()
+        fig = Figure(resolution=(1000, 770))
         axis_bloch = Axis3(
             fig[location...], 
             title="Bloch ball",
@@ -48,9 +48,9 @@ function blochquiverplot!(data; fig=current_figure(), axis=current_axis(), isvis
     
     arrow_object = arrows!(axis, points, directions, 
         color=inward_components, 
-        lengthscale=0.03, 
-        arrowsize=0.03*Vec3f(1.0, 1, 1),
-        linewidth=0.015, 
+        lengthscale=0.03f0, 
+        arrowsize=0.03f0*Vec3f(1.f0, 1, 1),
+        linewidth=0.015f0, 
         colormap=:viridis,
         colorrange=colorrange,
         visible=isvisible
@@ -72,7 +72,7 @@ function blochvectorplot!(data; fig=current_figure(), axis=current_axis())
     
     Legend(fig[1, 1, Right()], 
         [lines_orbitbloch, scatter_beginbloch, scatter_endbloch, scatter_endgate], 
-        [L"ϱ(t)", L"ϱ(0)", L"ϱ(1)", L"\mathcal{Q}ϱ(0)"],
+        [L"ϱ(t)", L"ϱ(0)", L"ϱ(T)", L"\mathcal{Q}ϱ(0)"],
         orientation=:vertical,
         labelsize=20
     )
@@ -94,11 +94,12 @@ end
 
 function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     # pre-allocations
-    C = ComplexF64
+    C = ComplexF32 # faster since Makie converts to Float32 anyways
+    saveat = range(0.f0, 1.f0, 500)
     qgates = gates(C)
     npauli = normalized_pauli(C)
-    initial_datum = hcat(vec.(npauli ./ C(sqrt(2)))...)
-    pairing_initial_data, pairing_gates = map(menu) do m 
+    vectorized_npauli = vec.(npauli ./ C(sqrt(2)))
+    pairings = map(menu) do m 
         options = to_value(m.options)
         Dict(s => i for (s, i) in zip(options, 1:3))
     end
@@ -108,27 +109,30 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     lindbladian_matrices = lift(odep.free_hamiltonian, odep.control_hamiltonians, odep.damping_rates) do x, y, z
         lindbladians(x, y, odep.jump_operators, z)        
     end
-    
+
     control_effective = lift(control_spoint, slider_grid.control_amplitude) do direction, amplitude
         isapprox(direction, zero(direction)) ? zero(direction) : amplitude.*(direction./norm(direction))
     end
-    saveat = range(0.0, 1.0, 500)
-    orbit_density = lift(slider_grid.time_horizon, control_effective, lindbladian_matrices) do time_horizon, control_eff, lindbladian_mat
-        simulate_gksl(control_eff, lindbladian_mat, initial_datum, time_horizon; saveat).u
-    end
 
-    orbit_bloch = lift(orbit_density, menu.initial_data.selection) do orbit, selection
-        to_blochball([view(A, :, pairing_initial_data[selection]) for A in orbit], npauli)
+    initial_density = lift(slider_grid.Xcomponent_ϱ0, slider_grid.Ycomponent_ϱ0, slider_grid.Zcomponent_ϱ0) do X, Y, Z
+        blochvector_to_vectorized_density(X, Y, Z, vectorized_npauli)
+    end
+    orbit_density = lift(control_effective, lindbladian_matrices, initial_density, slider_grid.time_horizon) do control_eff, lindbladian_mat, ϱ0, time_horizon
+        simulate_gksl(control_eff, lindbladian_mat, ϱ0, time_horizon; saveat).u
+    end
+    orbit_bloch = lift(orbit_density) do orbit
+        to_blochball(orbit, npauli)
     end
 
     orbit_color = lift(orbit_bloch) do orbit; norm.(orbit); end
     orbit_begin = lift(first, orbit_bloch)
     orbit_end = lift(last, orbit_bloch)
-    gate_endstate = lift(menu.initial_data.selection, menu.gate.selection) do indata_selec, gate_selec
-        to_blochball([
-            reshape(qgates[pairing_gates[gate_selec]]
-                    * initial_datum[:, pairing_initial_data[indata_selec]], 2, 2)
-            ], npauli
+
+    gate_endstate = lift(initial_density, menu.gate.selection) do ϱ0, gate_selec
+        gates_pairing = first(pairings)
+        to_blochball(
+            [reshape(qgates[gates_pairing[gate_selec]] * ϱ0, 2, 2)],
+            npauli
         )
     end
 
@@ -218,7 +222,7 @@ function sphereplot!(; fig=current_figure(), axis=current_axis(), radius=1/sqrt(
 end
 
 function gksl_odeparameters(toggles; H0::M=[-1 2; 2 1], h::V=[[0 1; 0 0], [0 0; 1 0]]) where {M<:AbstractMatrix{<:Number}, V<:Vector{<:AbstractMatrix{<:Number}}}
-    C = ComplexF64
+    C = ComplexF32
     if !(ishermitian(H0))
         throw(ArgumentError("Matrix H0 must be HERMITIAN, i.e. H0 = adjoint(H0)"))
     end
@@ -272,34 +276,41 @@ end
 function setup_slidergrid!(; fig=current_figure(), location=[1, 2], sublocation=[1, 3])
     sg = SliderGrid(
         fig[location...][sublocation...],
-        (label = L"\omega_{\mathrm{max}}", range = 0:0.1:20.0, format = "{:.1f}", startvalue = 1.0),
-        (label = L"T", range = 0:0.1:10.0, format = "{:.1f}", startvalue = 1.0),
+        (label = L"\omega_{\mathrm{max}}", range = 0.f0:0.1f0:20.f0, format = "{:.1f}", startvalue = 1.f0),
+        (label = L"T", range = 0.f0:0.1f0:10.f0, format = "{:.1f}", startvalue = 1.f0),
+        (label = L"⟨ϱ(0),X⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 1.f0),
+        (label = L"⟨ϱ(0),Y⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 0.f0),
+        (label = L"⟨ϱ(0),Z⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 0.f0),
         width = 200,
         tellheight = false
     )
 
-    return (; control_amplitude=sg.sliders[1].value, time_horizon=sg.sliders[2].value)
+    return (; 
+        control_amplitude=sg.sliders[1].value, 
+        time_horizon=sg.sliders[2].value,
+        Xcomponent_ϱ0=sg.sliders[3].value,
+        Ycomponent_ϱ0=sg.sliders[4].value,
+        Zcomponent_ϱ0=sg.sliders[5].value
+    )
 end
 
 function setup_menu!(; fig=current_figure(), location=[1, 2], sublocation=[1, 2])
-    initial_data_menu = Menu(
-        fig, 
-        options = ["Initial point: (X=1,0,0)", "Initial point: (0,Y=1,0)", "Initial point: (0,0,Z=1)"], 
-        default = "Initial point: (X=1,0,0)"
-    )
     gate_menu = Menu(
         fig, 
-        options = ["Gate RX(π/2)", "Gate Hadamard", "Gate RZ(3π/2)"],
-        default = "Gate RX(π/2)"
+        options = [
+            "Gate RX(π/2)",
+            "Hadamard",
+            "RZ(3π/2)"
+        ],
+        default = "Gate RX(π/2)",
     )
     fig[location...][sublocation...] = vgrid!(
-        initial_data_menu,
         gate_menu, 
-        tellheight = false, 
+        tellheight = true, 
         width = 200
     )
 
-    return (; initial_data=initial_data_menu, gate=gate_menu)
+    return (; gate=gate_menu)
 end
 
 
@@ -320,9 +331,9 @@ function setup_selectpoint!(; fig=current_figure(), location=[1, 2], sublocation
     
     arrow_head = lift(spoint) do p
         if isapprox(p, zero(p))
-            [0.8.*p]
+            [(8 .* p) ./ 10]
         else
-            [0.8.*p./norm(p)]
+            [(8 .* p ./ norm(p)) ./ 10]
         end
      end
     arrow_base = [Point2(0.f0, 0.f0)]
