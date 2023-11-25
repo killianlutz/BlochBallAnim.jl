@@ -3,18 +3,20 @@ Available kwargs: \n
 ``H0<:AbstractMatrix{<:Number}'': free Hamiltonian \n
 ``h<:Vector{<:AbstractMatrix{<:Number}}'': jump_operators."""
 function bloch_animation(; figure_theme=Theme(), kwargs...)
-    fig, axis_bloch = setup_figure(; figure_theme, location=[1, 1]) 
+    fig, axis_bloch = setup_figure(; figure_theme, location=[1, 2]) 
 
-    control_spoint = setup_selectpoint!(; fig, location=[1, 2], sublocation=[1, 1])
-    slider_grid = setup_slidergrid!(; fig, location=[1, 2], sublocation=[2, 1])   
-    toggles = setup_toggles!(; fig, location=[1, 2], sublocation=[3, 1])
-    menu = setup_menu!(; fig, location=[1, 2], sublocation=[4, 1])
+    control_spoint = setup_selectpoint!(; fig, location=[1, 3], sublocation=[1, 1])
+    slider_grid = setup_slidergrid!(; fig, location=[1, 3], sublocation=[2, 1])   
+    toggles = setup_toggles!(; fig, location=[1, 3], sublocation=[3, 1])
+    menu = setup_menu!(; fig, location=[1, 3], sublocation=[4, 1])
     
-    orbit_observables, quiver_observables = liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
+    orbit_obs, quiver_obs = liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     
-    vectorplots = blochvectorplot!(orbit_observables; fig, axis=axis_bloch)
-    quiverplots = blochquiverplot!(quiver_observables; fig, axis=axis_bloch)
+    vectorplots = blochvectorplot!(orbit_obs; fig, axis=axis_bloch)
+    quiverplots = blochquiverplot!(quiver_obs, vectorplots; fig, axis=axis_bloch)
     hide_and_show!(toggles.quiver, vectorplots, quiverplots)
+
+    colgap!(fig.layout, 1, Relative(1/20))
     resize_to_layout!(fig)
 
     display(fig)
@@ -33,6 +35,9 @@ function setup_figure(; figure_theme, location=[1, 1])
             xzpanelcolor = (:black, 0.05), 
             yzpanelcolor = (:black, 0.05),
             xypanelcolor = (:black, 0.05),
+            xlabel=L"X",
+            ylabel=L"Y",
+            zlabel=L"Z",
             aspect=:equal
         )
         hidedecorations!(axis_bloch, label=false)
@@ -43,8 +48,8 @@ function setup_figure(; figure_theme, location=[1, 1])
     end
 end
 
-function blochquiverplot!(data; fig=current_figure(), axis=current_axis(), isvisible=false)
-    points, directions, inward_components, colorrange = data
+function blochquiverplot!(quiver_observables, vectorplots; fig=current_figure(), axis=current_axis(), isvisible=false)
+    points, directions, inward_components, colorrange = quiver_observables
     
     arrow_object = arrows!(axis, points, directions, 
         color=inward_components, 
@@ -55,29 +60,46 @@ function blochquiverplot!(data; fig=current_figure(), axis=current_axis(), isvis
         colorrange=colorrange,
         visible=isvisible
     )
-    Colorbar(fig[1, 1, Left()], arrow_object, tellwidth=false, tellheight=true)
+    
+    Colorbar(fig[1, 1][1, 1],
+        label="purity",
+        vectorplots.lines_orbitbloch, 
+        tellwidth=true, 
+        tellheight=true,
+        ticks=[0.5, 1.0],
+        labelpadding=-25.0
+    )
+    Colorbar(fig[1, 1][2, 1],
+        label="quiver strength",
+        arrow_object, 
+        tellwidth=true, 
+        tellheight=true,
+        ticklabelsvisible=false,
+        ticksvisible=false,
+        labelpadding=0.0
+    )
 
-    return (arrow_object, )
+    return (; arrow_object, )
 end
 
-function blochvectorplot!(data; fig=current_figure(), axis=current_axis())
-    orbit, orbit_color, orbit_begin, orbit_end, gate_endstate, control_inbloch = data
+function blochvectorplot!(orbit_observables; fig=current_figure(), axis=current_axis())
+    orbit, orbit_color, orbit_begin, orbit_end, gate_endstate, control_inbloch = orbit_observables
     arrow_base = [Point3f(0.f0, 0.f0, 0.f0)]
 
-    lines_orbitbloch = lines!(axis, orbit, color=orbit_color, colormap=c=cgrad(:jet, rev=true), colorrange=(0.0, 1/sqrt(2)), linewidth=6)
+    lines_orbitbloch = lines!(axis, orbit, color=orbit_color, colormap=c=cgrad(:jet, rev=true), colorrange=(0.5, 1.0), linewidth=6)
     scatter_beginbloch = scatter!(axis, orbit_begin, marker=:star5, markersize=30, color=(:orange, 0.95))
     scatter_endbloch = scatter!(axis, orbit_end, marker=:xcross, markersize=30, color=(:blue, 0.95))
     scatter_endgate = scatter!(axis, gate_endstate, marker=:cross, markersize=30, color=(:green, 0.95))
     arrows!(axis, arrow_base, control_inbloch; color=:red, arrowsize=0.08, linewidth=0.02)
     
-    Legend(fig[1, 1, Right()], 
+    Legend(fig[1, 1][3, 1], 
         [lines_orbitbloch, scatter_beginbloch, scatter_endbloch, scatter_endgate], 
         [L"ϱ(t)", L"ϱ(0)", L"ϱ(T)", L"\mathcal{Q}ϱ(0)"],
         orientation=:vertical,
-        labelsize=20
+        labelsize=16
     )
 
-    return (lines_orbitbloch, scatter_beginbloch, scatter_endbloch, scatter_endgate)
+    return (; lines_orbitbloch, scatter_beginbloch, scatter_endbloch, scatter_endgate)
 end
 
 " When quiver plot: orbit is off and quiver is on; else: vice-versa "
@@ -98,7 +120,7 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     saveat = range(0.f0, 1.f0, 500)
     qgates = gates(C)
     npauli = normalized_pauli(C)
-    vectorized_npauli = vec.(npauli ./ C(sqrt(2)))
+    vectorized_npauli = vec.(npauli)# ./ C(sqrt(2)))
     pairings = map(menu) do m 
         options = to_value(m.options)
         Dict(s => i for (s, i) in zip(options, 1:3))
@@ -124,7 +146,7 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
         to_blochball(orbit, npauli)
     end
 
-    orbit_color = lift(orbit_bloch) do orbit; norm.(orbit); end
+    orbit_color = lift(orbit_bloch) do orbit; 0.5f0 .+ norm.(orbit).^2; end
     orbit_begin = lift(first, orbit_bloch)
     orbit_end = lift(last, orbit_bloch)
 
@@ -172,7 +194,7 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     end
 
     ######## USEFUL OBSERVABLES
-    orbit_observables = (
+    orbit_observables = (;
         orbit_bloch, 
         orbit_color, 
         orbit_begin, 
@@ -180,7 +202,7 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
         gate_endstate, 
         control_inbloch
     )
-    quiver_observables = (
+    quiver_observables = (;
         quiver_points, 
         directions,
         inward_components,

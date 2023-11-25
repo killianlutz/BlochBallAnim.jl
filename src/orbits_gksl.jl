@@ -8,13 +8,15 @@ function normalized_pauli(C::DataType)
     return npauli
 end
 
-function blochvector_to_vectorized_density(X::Real, Y::Real, Z::Real, vectorized_npauli::AbstractVector)
+function blochvector_to_vectorized_density(X::T, Y::T, Z::T, vectorized_npauli::AbstractVector) where T<:Real
     ϱ0 = zero(first(vectorized_npauli))
+    ϱ0[1] = 1/2
+    ϱ0[4] = 1/2 # reshaped maximally mixed state I/2 
     components = [X, Y, Z]
     length = norm(components)
 
-    if length > 1 # project bloch ball radius 1
-        components ./= length
+    if sqrt(2)*length > 1 # project onto coherence ball radius 1/sqrt(2)
+        components ./= length .* oftype(length, sqrt(2))
     end
     for i in 1:3
         ϱ0 .+= components[i] .* vectorized_npauli[i]
