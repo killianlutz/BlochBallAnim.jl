@@ -1,14 +1,14 @@
 using Pkg
 Pkg.activate("./venv_BlochAnimation")
-Pkg.instantiate() # first use: resolves appropriate package versions
+# Pkg.instantiate() # first use: resolves appropriate package versions
 
 include("./src/BlochAnimation.jl")
 using .BlochAnimation
 import GLMakie.theme_dark
 import GLMakie.Theme
 
-# figure_theme = theme_dark();
-figure_theme = Theme();
+figure_theme = theme_dark();
+# figure_theme = Theme();
 
 ############ CHOOSE specific GKSL ode parameters
 ### 2D control ω and control hamiltonians: Pauli X/2 and Y/2
@@ -29,4 +29,6 @@ h = [
 # ]
 
 ############ Run animation
-BlochAnimation.bloch_animation(; figure_theme, H0, h)
+with_theme(theme_dark()) do 
+    BlochAnimation.bloch_animation(; figure_theme, H0, h)
+end

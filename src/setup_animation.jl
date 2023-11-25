@@ -112,8 +112,9 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     control_effective = lift(control_spoint, slider_grid.control_amplitude) do direction, amplitude
         isapprox(direction, zero(direction)) ? zero(direction) : amplitude.*(direction./norm(direction))
     end
+    saveat = range(0.0, 1.0, 500)
     orbit_density = lift(slider_grid.time_horizon, control_effective, lindbladian_matrices) do time_horizon, control_eff, lindbladian_mat
-        simulate_gksl(control_eff, lindbladian_mat, initial_datum, time_horizon; saveat=range(0.0, 1.0, 500)).u
+        simulate_gksl(control_eff, lindbladian_mat, initial_datum, time_horizon; saveat).u
     end
 
     orbit_bloch = lift(orbit_density, menu.initial_data.selection) do orbit, selection
