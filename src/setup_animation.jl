@@ -70,7 +70,7 @@ function blochquiverplot!(quiver_observables, vectorplots; fig=current_figure(),
         labelpadding=-25.0
     )
     Colorbar(fig[1, 1][2, 1],
-        label="quiver strength",
+        label="velocity magnitude",
         arrow_object, 
         tellwidth=true, 
         tellheight=true,
@@ -264,7 +264,7 @@ end
 function setup_toggles!(; fig=current_figure(), location=[1, 2], sublocation=[1, 1])
     height = 15; width = 30; fontsize = 15;
     free_toggle = Toggle(fig, active=true, halign=:left, height=height, width=width)
-    free_label = Label(fig, lift(x -> x ? "Free Hamilt." : "Trivial", free_toggle.active), fontsize=fontsize)
+    free_label = Label(fig, lift(x -> x ? L"H_0 \neq 0" : L"H_0 = 0", free_toggle.active), fontsize=fontsize)
 
     control_toggle = Toggle(fig, active=true, halign=:left, height=height, width=width)
     control_label = Label(fig, lift(x -> x ? "Controlled" : "No control", control_toggle.active), fontsize=fontsize)
@@ -273,7 +273,7 @@ function setup_toggles!(; fig=current_figure(), location=[1, 2], sublocation=[1,
     noisy_label = Label(fig, lift(x -> x ? "Noisy" : "Isolated", noisy_toggle.active), fontsize=fontsize)
 
     quiver_toggle = Toggle(fig, active=false, halign=:left, height=height, width=width)
-    quiver_label = Label(fig, lift(x -> x ? "Quiver" : "Orbit", quiver_toggle.active), fontsize=fontsize)
+    quiver_label = Label(fig, lift(x -> x ? "Velocity" : "Orbit", quiver_toggle.active), fontsize=fontsize)
 
     content = [free_toggle free_label;
             control_toggle control_label;
@@ -298,7 +298,7 @@ end
 function setup_slidergrid!(; fig=current_figure(), location=[1, 2], sublocation=[1, 3])
     sg = SliderGrid(
         fig[location...][sublocation...],
-        (label = L"\omega_{\mathrm{max}}", range = 0.f0:0.1f0:20.f0, format = "{:.1f}", startvalue = 1.f0),
+        (label = L"Ω_{\mathrm{max}}", range = 0.f0:0.1f0:20.f0, format = "{:.1f}", startvalue = 1.f0),
         (label = L"T", range = 0.f0:0.1f0:10.f0, format = "{:.1f}", startvalue = 1.f0),
         (label = L"⟨ϱ(0),X⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 1.f0),
         (label = L"⟨ϱ(0),Y⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 0.f0),
@@ -339,11 +339,11 @@ end
 function setup_selectpoint!(; fig=current_figure(), location=[1, 2], sublocation=[4, 1])
     axis_control = Axis(
         fig[location...][sublocation...],
-        title=L"\mathrm{Control}~ \omega",
+        title=L"\mathrm{Angular~ Control}~ Ω",
         limits=(-1.0, 1.0, -1.0, 1.0),
         aspect=AxisAspect(1),
-        xlabel=L"ω_x",
-        ylabel=L"ω_y"
+        xlabel=L"Ω_x",
+        ylabel=L"Ω_y"
     )
     hidexdecorations!(axis_control, label=false, grid=false)
     hideydecorations!(axis_control, label=false, grid=false)
