@@ -1,9 +1,9 @@
 using Pkg
-Pkg.activate("./venv_BlochAnimation")
+Pkg.activate("./venv_BlochBallAnim")
 # Pkg.instantiate() # first use: resolves appropriate package versions
 
-include("../src/BlochAnimation.jl")
-using .BlochAnimation
+include("../src/modules/BlochBallAnim.jl")
+using .BlochBallAnim
 import GLMakie.theme_dark
 import GLMakie.Theme
 import GLMakie.with_theme

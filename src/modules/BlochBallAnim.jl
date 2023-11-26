@@ -1,4 +1,4 @@
-module BlochAnimation
+module BlochBallAnim
 
 using GLMakie
 using DifferentialEquations
@@ -14,4 +14,4 @@ include("../quiver_bloch.jl")
 include("../interactive_blocks.jl")
 include("../setup_animation.jl")
 
-end # module BlochAnimation
+end # module BlochBallAnim
