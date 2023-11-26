@@ -2,8 +2,8 @@
 Available kwargs: \n 
 ``H0<:AbstractMatrix{<:Number}'': free Hamiltonian \n
 ``h<:Vector{<:AbstractMatrix{<:Number}}'': jump_operators."""
-function bloch_animation(; figure_theme=Theme(), kwargs...)
-    fig, axis_bloch = setup_figure(; figure_theme, location=[1, 2]) 
+function bloch_animation(; kwargs...)
+    fig, axis_bloch = setup_figure(; location=[1, 2]) 
 
     control_spoint = setup_selectpoint!(; fig, location=[1, 3], sublocation=[1, 1])
     slider_grid = setup_slidergrid!(; fig, location=[1, 3], sublocation=[2, 1])   
@@ -20,39 +20,38 @@ function bloch_animation(; figure_theme=Theme(), kwargs...)
     resize_to_layout!(fig)
 
     display(fig)
+    return fig
 end
 
 
 #### SOURCE 
-function setup_figure(; figure_theme, location=[1, 1])
-    with_theme(figure_theme) do
-        radius = 1/sqrt(2)
-        fig = Figure(resolution=(1000, 770))
-        axis_bloch = Axis3(
-            fig[location...], 
-            title="Bloch ball",
-            limits=(-radius, radius, -radius, radius, -radius, radius),
-            xzpanelcolor = (:black, 0.05), 
-            yzpanelcolor = (:black, 0.05),
-            xypanelcolor = (:black, 0.05),
-            xlabel=L"X",
-            ylabel=L"Y",
-            zlabel=L"Z",
-            aspect=:equal
-        )
-        hidedecorations!(axis_bloch, label=false)
-        axis_bloch.azimuth = π/4
+function setup_figure(; location=[1, 1])
+    radius = 1/sqrt(2)
+    fig = Figure(resolution=(1000, 770))
+    axis_bloch = Axis3(
+        fig[location...], 
+        title="Bloch ball",
+        limits=(-radius, radius, -radius, radius, -radius, radius),
+        xzpanelcolor = (:black, 0.05), 
+        yzpanelcolor = (:black, 0.05),
+        xypanelcolor = (:black, 0.05),
+        xlabel=L"X",
+        ylabel=L"Y",
+        zlabel=L"Z",
+        aspect=:equal
+    )
+    hidedecorations!(axis_bloch, label=false)
+    axis_bloch.azimuth = π/4
 
-        sphereplot!(; fig, axis=axis_bloch, radius)
-        return (fig, axis_bloch)
-    end
+    sphereplot!(; fig, axis=axis_bloch, radius)
+    return (fig, axis_bloch)
 end
 
 function blochquiverplot!(quiver_observables, vectorplots; fig=current_figure(), axis=current_axis(), isvisible=false)
-    points, directions, inward_components, colorrange = quiver_observables
+    points, directions, velocity_magnitudes, colorrange = quiver_observables
     
     arrow_object = arrows!(axis, points, directions, 
-        color=inward_components, 
+        color=velocity_magnitudes, 
         lengthscale=0.03f0, 
         arrowsize=0.03f0*Vec3f(1.f0, 1, 1),
         linewidth=0.015f0, 
@@ -136,20 +135,24 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
         isapprox(direction, zero(direction)) ? zero(direction) : amplitude.*(direction./norm(direction))
     end
 
+    # ϱ0 density matrix
     initial_density = lift(slider_grid.Xcomponent_ϱ0, slider_grid.Ycomponent_ϱ0, slider_grid.Zcomponent_ϱ0) do X, Y, Z
         blochvector_to_vectorized_density(X, Y, Z, vectorized_npauli)
     end
+    # ϱ(t) GKSL solution
     orbit_density = lift(control_effective, lindbladian_matrices, initial_density, slider_grid.time_horizon) do control_eff, lindbladian_mat, ϱ0, time_horizon
         simulate_gksl(control_eff, lindbladian_mat, ϱ0, time_horizon; saveat).u
     end
+    # x(t) coherence vectors associated to ϱ(t)
     orbit_bloch = lift(orbit_density) do orbit
         to_blochball(orbit, npauli)
     end
 
-    orbit_color = lift(orbit_bloch) do orbit; 0.5f0 .+ norm.(orbit).^2; end
+    orbit_color = lift(orbit_bloch) do orbit; 0.5f0 .+ norm.(orbit).^2; end # purity
     orbit_begin = lift(first, orbit_bloch)
     orbit_end = lift(last, orbit_bloch)
 
+    # target quantum state
     gate_endstate = lift(initial_density, menu.gate.selection) do ϱ0, gate_selec
         gates_pairing = first(pairings)
         to_blochball(
@@ -158,6 +161,7 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
         )
     end
 
+    # equatorial angular velocity Ω
     control_inbloch = lift(control_spoint) do control
         if isapprox(control, zero(control))
             return [Point3f(first(control), last(control), 0.f0)]
@@ -168,21 +172,21 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     end
 
     ###### QUIVER OBSERVABLES
-    quiver_points = ball_mesh()
+    quiver_points = ball_mesh() # location of the tip of velocity vectors
     scalar_type = eltype(first(quiver_points))
 
     directions = Observable(zero(quiver_points))
-    inward_components = Observable( zeros(scalar_type, length(quiver_points)) )
+    velocity_magnitudes = Observable( zeros(scalar_type, length(quiver_points)) )
     colorrange = Observable( (zero(scalar_type), one(scalar_type)) )
     
     onany(toggles.quiver.active, lindbladian_matrices, control_effective, slider_grid.time_horizon) do isquiver_active, L, u, T
         if isquiver_active
             velocity_field = to_bloch_matrix(L, npauli)
             bvelocity = bloch_velocity(quiver_points, (velocity_field, u, T))
-            minmax = extrema(bvelocity.inward_components)
+            minmax = extrema(bvelocity.velocity_magnitudes)
 
             directions[] = bvelocity.directions
-            inward_components[] = bvelocity.inward_components # FOR NOW ITS THE LENGTH
+            velocity_magnitudes[] = bvelocity.velocity_magnitudes # FOR NOW ITS THE LENGTH
             if isapprox(first(minmax), last(minmax))
                 colorrange[] = (zero(scalar_type), one(scalar_type))
             else
@@ -205,42 +209,11 @@ function liftobservables(toggles, control_spoint, slider_grid, menu; kwargs...)
     quiver_observables = (;
         quiver_points, 
         directions,
-        inward_components,
+        velocity_magnitudes,
         colorrange
     )
 
     return (orbit_observables, quiver_observables)
-end
-
-function sphereplot!(; fig=current_figure(), axis=current_axis(), radius=1/sqrt(2), npointsθ=20, npointsϕ=15)
-    θ = range(0, 2π - 1e-6, npointsθ)
-    ϕ = range(0, π - 1e-6, npointsϕ)
-
-    x = radius * cos.(θ)       * sin.(ϕ)'
-    y = radius * sin.(θ)       * sin.(ϕ)'
-    z = radius * ones(npointsθ) * cos.(ϕ)'
-
-    latitude_points = (x, y, z) .|> vec
-    longitude_points = (x, y, z) .|> transpose .|> vec
-
-    latitude_points, longitude_points = map((latitude_points, longitude_points)) do points
-        [Point3(X, Y, Z) for (X, Y, Z) in zip(points...)]
-    end
-    equator = [Point3f(radius*cos(t), radius*sin(t), 0) for t in range(0, 2π - 1e-6, 2*npointsθ)]
-    sphere_xaxis = ([Point3(0, 0, 0)], [Point3(1.1radius, 0, 0)])
-    sphere_yaxis = ([Point3(0, 0, 0)], [Point3(0, 1.1radius, 0)])
-    sphere_zaxis = ([Point3(0, 0, 0)], [Point3(0, 0, 1.1radius)])
-
-    lines!(axis, equator, color=:black)
-    arrows!(axis, sphere_xaxis..., color=:black, arrowsize=0.05, linewidth=0.01, alpha=0.5)
-    arrows!(axis, sphere_yaxis..., color=:black, arrowsize=0.05, linewidth=0.01, alpha=0.5)
-    arrows!(axis, sphere_zaxis..., color=:black, arrowsize=0.05, linewidth=0.01, alpha=0.5)
-
-    scat_origin = scatter!(axis, Point3(0.0, 0.0, 0.0), color=:black, markersize=10, marker=:diamond)
-    scatlines_latitude = scatterlines!(axis, latitude_points, color=(:purple, 0.2), markersize=0.1, marker=:circle)
-    scatlines_longitude = lines!(axis, longitude_points, color=(:purple, 0.2))
-
-    return (scatlines_latitude, scatlines_longitude, scat_origin)
 end
 
 function gksl_odeparameters(toggles; H0::M=[-1 2; 2 1], h::V=[[0 1; 0 0], [0 0; 1 0]]) where {M<:AbstractMatrix{<:Number}, V<:Vector{<:AbstractMatrix{<:Number}}}
@@ -259,107 +232,4 @@ function gksl_odeparameters(toggles; H0::M=[-1 2; 2 1], h::V=[[0 1; 0 0], [0 0; 
     damping_rates = lift(x -> x ? γ : zero(γ), toggles.noisy.active)
 
     return (; free_hamiltonian, control_hamiltonians, jump_operators, damping_rates)
-end
-
-function setup_toggles!(; fig=current_figure(), location=[1, 2], sublocation=[1, 1])
-    height = 15; width = 30; fontsize = 15;
-    free_toggle = Toggle(fig, active=true, halign=:left, height=height, width=width)
-    free_label = Label(fig, lift(x -> x ? L"H_0 \neq 0" : L"H_0 = 0", free_toggle.active), fontsize=fontsize)
-
-    control_toggle = Toggle(fig, active=true, halign=:left, height=height, width=width)
-    control_label = Label(fig, lift(x -> x ? "Controlled" : "No control", control_toggle.active), fontsize=fontsize)
-
-    noisy_toggle = Toggle(fig, active=true, halign=:left, height=height, width=width)
-    noisy_label = Label(fig, lift(x -> x ? "Noisy" : "Isolated", noisy_toggle.active), fontsize=fontsize)
-
-    quiver_toggle = Toggle(fig, active=false, halign=:left, height=height, width=width)
-    quiver_label = Label(fig, lift(x -> x ? "Velocity" : "Orbit", quiver_toggle.active), fontsize=fontsize)
-
-    content = [free_toggle free_label;
-            control_toggle control_label;
-            noisy_toggle noisy_label;
-            quiver_toggle quiver_label]
-    fig[location...][sublocation...] = grid!(
-        content, 
-        tellheight=false, 
-        tellwidth=false
-    )
-
-    return (;
-        gksl=(;
-            free=free_toggle, 
-            control=control_toggle, 
-            noisy=noisy_toggle,
-        ),
-        quiver=quiver_toggle
-    )
-end
-
-function setup_slidergrid!(; fig=current_figure(), location=[1, 2], sublocation=[1, 3])
-    sg = SliderGrid(
-        fig[location...][sublocation...],
-        (label = L"Ω_{\mathrm{max}}", range = 0.f0:0.1f0:20.f0, format = "{:.1f}", startvalue = 1.f0),
-        (label = L"T", range = 0.f0:0.1f0:10.f0, format = "{:.1f}", startvalue = 1.f0),
-        (label = L"⟨ϱ(0),X⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 1.f0),
-        (label = L"⟨ϱ(0),Y⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 0.f0),
-        (label = L"⟨ϱ(0),Z⟩", range = -1.f0:0.01f0:1.f0, format = "{:.2f}", startvalue = 0.f0),
-        width = 200,
-        tellheight = false
-    )
-
-    return (; 
-        control_amplitude=sg.sliders[1].value, 
-        time_horizon=sg.sliders[2].value,
-        Xcomponent_ϱ0=sg.sliders[3].value,
-        Ycomponent_ϱ0=sg.sliders[4].value,
-        Zcomponent_ϱ0=sg.sliders[5].value
-    )
-end
-
-function setup_menu!(; fig=current_figure(), location=[1, 2], sublocation=[1, 2])
-    gate_menu = Menu(
-        fig, 
-        options = [
-            "Gate RX(π/2)",
-            "Hadamard",
-            "RZ(3π/2)"
-        ],
-        default = "Gate RX(π/2)",
-    )
-    fig[location...][sublocation...] = vgrid!(
-        gate_menu, 
-        tellheight = true, 
-        width = 200
-    )
-
-    return (; gate=gate_menu)
-end
-
-
-function setup_selectpoint!(; fig=current_figure(), location=[1, 2], sublocation=[4, 1])
-    axis_control = Axis(
-        fig[location...][sublocation...],
-        title=L"\mathrm{Angular~ Control}~ Ω",
-        limits=(-1.0, 1.0, -1.0, 1.0),
-        aspect=AxisAspect(1),
-        xlabel=L"Ω_x",
-        ylabel=L"Ω_y"
-    )
-    hidexdecorations!(axis_control, label=false, grid=false)
-    hideydecorations!(axis_control, label=false, grid=false)
-
-    Makie.deactivate_interaction!(axis_control, :rectanglezoom)
-    spoint = select_point(axis_control.scene, marker=:circle)
-    
-    arrow_head = lift(spoint) do p
-        if isapprox(p, zero(p))
-            [(8 .* p) ./ 10]
-        else
-            [(8 .* p ./ norm(p)) ./ 10]
-        end
-     end
-    arrow_base = [Point2(0.f0, 0.f0)]
-    arrows!(axis_control, arrow_base, arrow_head; color=:red, linewidth=5, arrowsize=20)
-    
-    return spoint
 end

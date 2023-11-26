@@ -8,8 +8,10 @@ using SparseArrays
 
 export bloch_animation
 
-include("./orbits_gksl.jl")
-include("./quiver_bloch.jl")
-include("./setup_animation.jl")
+include("../bloch_ball.jl")
+include("../orbits_gksl.jl")
+include("../quiver_bloch.jl")
+include("../interactive_blocks.jl")
+include("../setup_animation.jl")
 
 end # module BlochAnimation
