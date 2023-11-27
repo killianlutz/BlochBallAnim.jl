@@ -4,9 +4,7 @@ Pkg.activate("./venv_BlochBallAnim")
 
 include("../src/modules/BlochBallAnim.jl")
 using .BlochBallAnim
-import GLMakie.theme_dark
-import GLMakie.Theme
-import GLMakie.with_theme
+import GLMakie: theme_dark, Theme, with_theme
 
 figure_theme = theme_dark();
 # figure_theme = Theme();
@@ -19,5 +17,5 @@ collapse_operators = [
 
 ############ Run animation
 with_theme(figure_theme) do
-    BlochAnimation.bloch_animation(; H0=free_hamiltonian, h=collapse_operators)
+    BlochBallAnim.bloch_animation(; H0=free_hamiltonian, h=collapse_operators)
 end
