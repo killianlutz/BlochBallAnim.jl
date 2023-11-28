@@ -20,6 +20,10 @@ $$\mathcal{L}(\Omega, \varrho) = -i\left(H_{\Omega}\varrho-\varrho H_{\Omega}\ri
 
 Using the Pauli matrices $X, Y, Z$, the time-volution of qubit density operators $\varrho(t)$ may be embedded as a curve $x(t)$ in the closed unit ball of $\mathbb{R}^3$, also called Bloch ball.
 
+Once embedded into the Bloch ball, the GKS-lindblad ODE is a affine and of the form 
+$$\dot{x} = Ax + B(\Omega, x) + b.$$
+The `Velocity` button displays the vector-field $x \mapsto Ax + B(\Omega, x) + b$ in $\mathbb{R}^3$.
+
 ## This animation provides answers to
 * Interpretation of coherent controls $\Omega(t)$?
 * Effect of a particular choice of collapse operators $h_k$?
