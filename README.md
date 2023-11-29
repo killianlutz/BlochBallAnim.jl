@@ -2,10 +2,7 @@
 
 ## Goal: open qubit quantum control made interactive and intuitive!
 
-<video 
-  src="https://github.com/killianlutz/BlochBallAnim.jl/assets/152091888/b39c8a53-96e6-474f-8b27-4a522892be73" 
-  controls="controls" muted="muted" class="d-block rounded-bottom-2 border-top width-fit" style="height: 240px">
-</video>
+https://github.com/killianlutz/BlochBallAnim.jl/assets/152091888/b39c8a53-96e6-474f-8b27-4a522892be73
 
 By adopting the [Bloch ball](https://en.wikipedia.org/wiki/Bloch_sphere) perspective, this project showcases the dynamics of open markovian quantum systems $\varrho(t)$ undergoing classical coherent control $\Omega(t)$.
 
