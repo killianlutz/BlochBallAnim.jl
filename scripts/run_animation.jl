@@ -6,8 +6,8 @@ include("../src/modules/BlochBallAnim.jl")
 using .BlochBallAnim
 import GLMakie: theme_dark, Theme, with_theme
 
-figure_theme = theme_dark();
-# figure_theme = Theme();
+# figure_theme = theme_dark();
+figure_theme = Theme();
 
 ############ CHOOSE specific GKSL ODE parameters
 free_hamiltonian = [-1 2; 2 1] # hermitian
