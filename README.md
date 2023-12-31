@@ -6,17 +6,20 @@ https://github.com/killianlutz/BlochBallAnim.jl/assets/152091888/b39c8a53-96e6-4
 
 By adopting the [Bloch ball](https://en.wikipedia.org/wiki/Bloch_sphere) perspective, this project showcases the dynamics of open markovian quantum systems $\varrho(t)$ undergoing classical coherent control $\Omega(t)$.
 
-Starting from an initial density operator $\varrho_0 \in \mathscr{M}(\mathbb{C})$, the time-evolution of such a system is modelled via the GKS-Lindblad ordinary differential equation
+Starting from an initial density operator $\varrho_0 \in \mathscr{M}_2(\mathbb{C})$, the time-evolution of such a system is modelled via the GKS-Lindblad ordinary differential equation
 
 $$\dot{\varrho} = \mathcal{L}(\Omega(t),\varrho), \quad 0 \leq t \leq T$$
 
-where the controlled Hamiltonian is 
-$H_{\Omega} = H_0 + \frac{1}{2}(\Omega_x X + \Omega_y Y)$ 
-and the controlled Lindbladian in diagonal form writes
+where the controlled Hamiltonian $H : \mathbb{R}^2\rightarrow \mathscr{M}_2(\mathbb{C})$
+is 
+
+$$H_{\Omega} = H_0 + \frac{1}{2}(\Omega_x X + \Omega_y Y)$$
+
+and the controlled Lindbladian in diagonal form $\mathcal{L}:\mathbb{R}^2 \times \mathscr{M}_2(\mathbb{C}) \rightarrow \mathscr{M}_2(\mathbb{C})$ writes
 
 $$\mathcal{L}(\Omega, \varrho) = -i\left(H_{\Omega}\varrho-\varrho H_{\Omega}\right) + \sum_{k} \gamma_k \left(2h_k \varrho h_k^* - \left(h_k^*h_k \varrho + \varrho h_k^*h_k\right) \right).$$
 
-Using the Pauli matrices $X, Y, Z$, the time-volution of qubit density operators $\varrho(t)$ may be embedded as a curve $x(t)$ in the closed unit ball of $\mathbb{R}^3$, also called Bloch ball.
+Using the Pauli matrices $X, Y, Z \in \mathscr{M}_2(\mathbb{C})$, the time-volution of qubit density operators $\varrho(t)$ may be embedded as a curve $x(t)$ in the closed unit ball of $\mathbb{R}^3$, also called Bloch ball.
 
 Once embedded into the Bloch ball, the GKS-lindblad ODE is a affine and of the form 
 $$\dot{x} = Ax + B(\Omega, x) + b.$$
