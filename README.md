@@ -19,9 +19,9 @@ and the controlled Lindbladian in diagonal form $\mathcal{L}:\mathbb{R}^2 \times
 
 $$\mathcal{L}(\Omega, \varrho) = -i\left(H_{\Omega}\varrho-\varrho H_{\Omega}\right) + \sum_{k} \gamma_k \left(2h_k \varrho h_k^* - \left(h_k^*h_k \varrho + \varrho h_k^*h_k\right) \right).$$
 
-Using the Pauli matrices $X, Y, Z \in \mathscr{M}_2(\mathbb{C})$, the time-volution of qubit density operators $\varrho(t)$ may be embedded as a curve $x(t)$ in the closed unit ball of $\mathbb{R}^3$, also called Bloch ball.
+Using the Pauli matrices $X, Y, Z \in \mathscr{M}_2(\mathbb{C})$, the time-volution of qubit density operators $\varrho(t)$ is embedded as a curve $x(t)$ in the closed unit ball of $\mathbb{R}^3$, also called Bloch ball.
 
-Once embedded into the Bloch ball, the GKS-lindblad ODE is a affine and of the form 
+Once embedded into the Bloch ball, the GKS-Lindblad equation is an affine ODE of the form 
 $$\dot{x} = Ax + B(\Omega, x) + b.$$
 The `Velocity` button displays the vector-field $x \mapsto Ax + B(\Omega, x) + b$ in $\mathbb{R}^3$.
 
