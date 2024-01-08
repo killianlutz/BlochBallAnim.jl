@@ -27,7 +27,7 @@ end
 #### SOURCE 
 function setup_figure(; location=[1, 1])
     radius = 1/sqrt(2)
-    fig = Figure(resolution=(1000, 770))
+    fig = Figure(size=(1000, 770))
     axis_bloch = Axis3(
         fig[location...], 
         title="Bloch ball",
